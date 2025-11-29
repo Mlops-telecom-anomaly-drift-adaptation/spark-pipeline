@@ -6,8 +6,8 @@ from pyspark.sql.functions import col, avg, sum, window
 import mlflow
 
 # --- 1. Ayarlar ---
-BUYUK_VERI_SETI_YOLU = "TUBITAK_data_280925__041025_cleaned.csv" 
-OVERLAP_DOSYASI = "Overlap_matrix.csv"
+BUYUK_VERI_SETI_YOLU = os.path.join(os.getcwd(), "TUBITAK_2807__030825.csv")
+OVERLAP_DOSYASI = os.path.join(os.getcwd(), "Overlap_matrix.csv")
 OVERLAP_ESIGI = 40.0
 PENCERE_SURESI = "8 hours"
 
