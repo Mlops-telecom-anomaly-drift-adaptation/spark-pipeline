@@ -3,7 +3,8 @@ import os
 import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, avg
-from pyspark.ml.feature import VectorAssembler, VarianceThresholdSelector, PCA
+# YENİ: RobustScaler eklendi
+from pyspark.ml.feature import VectorAssembler, VarianceThresholdSelector, PCA, RobustScaler
 import mlflow
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 
@@ -27,12 +28,11 @@ FEATURE_COLUMNS = [
     "avg_rrc_estab_success_rate_8h",
     "avg_rrc_attempts_8h",
     "avg_sim_rrc_conn_count_8h",
-    "avg_pusch_rrc_count_8h",
-    "sum_pusch_rrc_count_8h",
     
     # Kaynak Kullanımı
     "avg_dl_prb_utilization_8h",
     "avg_ul_prb_utilization_8h",
+    "avg_dl_prb_util_hwi_8h",
     
     # İnterferans / Gürültü
     "avg_ul_interference_8h",
@@ -40,17 +40,20 @@ FEATURE_COLUMNS = [
     "min_ul_interference_8h",
     
     # Sinyal Gücü (RSSI)
-    "avg_ul_rssi_dbm_8h",
-    "avg_ul_rssi_pusch_dbm_8h",
+    "avg_rssi_pucch_8h",
+    "avg_rssi_pusch_8h",
+    
+    # Sinyal Kalitesi
+    "avg_rsrp_pusch_8h",
+    "avg_rsrp_pucch_8h",
+    "avg_cqi_8h",
     
     # Diğerleri
     "avg_volte_traffic_erl_8h",
-    "avg_ho_success_rate_8h",
-    "avg_mac_dl_ibler_8h",
-    "avg_mac_ul_ibler_8h",
-    "avg_rsrp_pusch_8h",
-    "avg_rsrp_pucch_8h",
-    "avg_cqi_8h"
+    "avg_ho_success_in_8h",
+    "avg_intrafreq_ho_sr_8h",
+    "avg_interfreq_ho_sr_8h",
+    "avg_ul_packet_loss_8h"
 ]
 
 PCA_K_DEGERI = 2
@@ -67,7 +70,7 @@ PUSHGATEWAY_ADDRESS = 'localhost:9091'
 PROMETHEUS_JOB_NAME = 'ml_advanced_fs_monitoring_full' 
 registry = CollectorRegistry()
 
-# Grafana Metrikleri (İsimleri standartlaştırıldı)
+# Grafana Metrikleri
 g_job_duration = Gauge('spark_adv_fs_job_duration_seconds', 'Advanced FS Islem Suresi', registry=registry)
 g_job_success = Gauge('spark_adv_fs_job_success', 'Advanced FS Basari Durumu', registry=registry)
 g_avg_traffic = Gauge('spark_adv_fs_avg_traffic_8h', 'Ortalama 8 Saatlik Trafik (Data Drift)', registry=registry)
@@ -93,7 +96,7 @@ with mlflow.start_run() as run:
             print(f"HATA: Ara dosya okunamadı. Lütfen önce Pipeline 1'i çalıştırın.")
             raise e
 
-        # Sütun kontrolü (Eksik var mı?)
+        # Sütun kontrolü
         available_cols = df_windowed.columns
         valid_features = [c for c in FEATURE_COLUMNS if c in available_cols]
         
@@ -106,28 +109,38 @@ with mlflow.start_run() as run:
         # --- 6. DATA DRIFT METRİKLERİNİ HESAPLA ---
         print("Data Drift metrikleri hesaplanıyor...")
         
-        # DÜZELTİLEN KISIM: Burada artık UZUN isim kullanılıyor
-        drift_row = df_windowed.agg(
-            avg("avg_traffic_volume_gbyte_8h").alias("traffic"),
-            avg("avg_erab_drop_rate_8h").alias("drop")
-        ).first()
+        # Drift için kullanılacak sütunları kontrol et (varsa kullan)
+        drift_traffic = 0
+        drift_drop = 0
         
-        drift_traffic = drift_row["traffic"] if drift_row["traffic"] else 0
-        drift_drop = drift_row["drop"] if drift_row["drop"] else 0
+        if "avg_traffic_volume_gbyte_8h" in available_cols:
+            drift_traffic = df_windowed.agg(avg("avg_traffic_volume_gbyte_8h")).first()[0] or 0
+            
+        if "avg_erab_drop_rate_8h" in available_cols:
+            drift_drop = df_windowed.agg(avg("avg_erab_drop_rate_8h")).first()[0] or 0
 
         # --- 7. TRANSFORMASYONLAR ---
         print("Adım 7a: VectorAssembler çalışıyor...")
-        assembler = VectorAssembler(inputCols=valid_features, outputCol="temp_features")
+        assembler = VectorAssembler(inputCols=valid_features, outputCol="raw_features")
         df_assembled = assembler.transform(df_windowed)
 
-        print("Adım 7b: VarianceThresholdSelector çalışıyor...")
-        vt = VarianceThresholdSelector(featuresCol="temp_features", outputCol="vt_features")
-        vt.setVarianceThreshold(0.0)
-        vt_model = vt.fit(df_assembled)
-        df_variance_filtered = vt_model.transform(df_assembled)
+        # YENİ ADIM: RobustScaler (Outlier Koruması)
+        print("Adım 7b: RobustScaler (Aykırı Değer Koruması) çalışıyor...")
+        # withScaling=True (IQR ile ölçekle), withCentering=True (Medyanı çıkar)
+        scaler = RobustScaler(inputCol="raw_features", outputCol="scaled_features", 
+                              withScaling=True, withCentering=True, 
+                              lower=0.25, upper=0.75)
+        scaler_model = scaler.fit(df_assembled)
+        df_scaled = scaler_model.transform(df_assembled)
+
+        print("Adım 7c: VarianceThresholdSelector çalışıyor...")
+        # Scaler'dan çıkan 'scaled_features' sütununu kullanıyoruz
+        vt = VarianceThresholdSelector(featuresCol="scaled_features", outputCol="vt_features")
+        vt.setVarianceThreshold(0.0) # Sıfır varyanslıları at
+        vt_model = vt.fit(df_scaled)
+        df_variance_filtered = vt_model.transform(df_scaled)
         
-        print("Adım 7c: PCA çalışıyor...")
-        # Eğer feature sayısı 2'den azsa PCA hata verir, kontrol ekleyelim
+        print("Adım 7d: PCA çalışıyor...")
         actual_k = min(PCA_K_DEGERI, len(valid_features))
         pca = PCA(k=actual_k, inputCol="vt_features", outputCol="features")
         pca_model = pca.fit(df_variance_filtered)
@@ -140,6 +153,7 @@ with mlflow.start_run() as run:
         explained_variance = pca_model.explainedVariance.toArray().tolist()
         print(f"PCA Açıklanan Varyans: {explained_variance}")
         mlflow.log_param("pca_explained_variance", str(explained_variance))
+        mlflow.log_param("scaler_type", "RobustScaler")
 
         # --- 8. METRİKLERİ KAYDET ---
         print("Metrikler Grafana'ya gönderiliyor...")
