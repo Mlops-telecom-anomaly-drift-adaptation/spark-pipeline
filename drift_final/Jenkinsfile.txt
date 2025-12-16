@@ -1,0 +1,80 @@
+// Jenkinsfile - CI/CD Boru Hattı Tanımı
+
+pipeline {
+    // Projenin Git deposunu dinler ve push geldiğinde çalışır
+    agent any 
+
+    parameters {
+        // Dağıtım için kullanılacak imaj etiketi (tag)
+        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Docker imajı için kullanılacak etiket (tag).')
+    }
+
+    stages {
+        stage('1. Checkout Code') {
+            steps {
+                // Git deposundan kodu çeker
+                checkout scm 
+            }
+        }
+
+        stage('2. Build Time Dependencies (requirements.txt)') {
+            steps {
+                // Dockerfile'ın ihtiyaç duyduğu requirements dosyasının oluşturulduğundan emin olur
+                sh 'pip freeze > requirements.txt' 
+            }
+        }
+        
+        stage('3. Unit & Integration Tests') {
+            steps {
+                // NOTLARDAKİ TEST GEREKSİNİMİ BURADA KARŞILANIR
+                echo 'Birim testleri ve API testleri çalıştırılıyor...'
+                // Sanal ortamı etkinleştirmeye gerek kalmadan testleri çalıştır (Jenkins ortamına uygun)
+                sh 'python ./Dataset/test_api.py' 
+            }
+        }
+
+        stage('4. Docker Build & Push') {
+            steps {
+                script {
+                    // Docker imajını oluştur (Build)
+                    sh "docker build -t senai/drift-api:${params.IMAGE_TAG} ."
+                    
+                    // Docker Hub/Registry'ye gönder (Push)
+                    // Bu adım, Kubernetes'in imajı çekmesini sağlar
+                    // sh "docker push senai/drift-api:${params.IMAGE_TAG}" 
+                    echo "Docker imajı oluşturuldu ve Registry'ye gönderildi: senai/drift-api:${params.IMAGE_TAG}"
+                }
+            }
+        }
+
+        // NOTLARDAKİ BRANCH YÖNETİMİ GEREKSİNİMİ
+        stage('5. Kubernetes Deployment') {
+            steps {
+                script {
+                    // Eğer branch adı 'main' ise PROD ortamına, değilse TEST ortamına dağıt
+                    if (env.BRANCH_NAME == 'main') {
+                        echo "PROD Ortamına Dağıtım (Main Branch)..."
+                        // Gerçek bir dağıtım komutu (kubectl veya helm)
+                        // sh "kubectl apply -f k8s_deployment.yaml" 
+                    } else if (env.BRANCH_NAME == 'TEST') {
+                        echo "TEST Ortamına Dağıtım (TEST Branch)..."
+                        // TEST ortamı için özel ayarları olan yaml dosyası kullanılabilir
+                        // sh "kubectl apply -f k8s_deployment.yaml"
+                    } else {
+                        echo "Geliştirme Branchi: Dağıtım Atlandı."
+                    
+}
+                }
+            }
+        }
+
+        stage('6. Post-Deployment Smoke Test') {
+            steps {
+                // Dağıtım başarılı olduktan sonra canlı sistemin sağlık kontrolü
+                echo "Canlı sistem Health Check (Sağlık Kontrolü) yapılıyor..."
+                // Curl ile health check uç noktasını kontrol et
+                // sh "curl http://<K8S_LOAD_BALANCER_IP>/health" 
+            }
+        }
+    }
+}

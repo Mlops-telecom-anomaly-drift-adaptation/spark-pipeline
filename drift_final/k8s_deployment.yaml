@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drift-detection-deployment
+  labels:
+    app: drift-api
+spec:
+  # Notlardaki Ölçeklenebilirlik Gereksinimi: En az 3 kopya ile başla
+  replicas: 3 
+  selector:
+    matchLabels:
+      app: drift-api
+  template:
+    metadata:
+      labels:
+        app: drift-api
+    spec:
+      containers:
+      - name: drift-inference-service
+        # Dockerfile ile oluşturacağınız imaj adı (Örn: senai/drift-api:v1.0)
+        image: drift-api:latest 
+        ports:
+        - containerPort: 5000
+        # Load Balancer/Liveness Probe için Health Check
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        # Load Balancer/Readiness Probe için Hazırlık Kontrolü
+        # Model yüklenmeden trafik gelmesini engeller
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+
+---
+# Kubernetes Service (Load Balancer Rolü Görür)
+# Bu kısım, notlarınızdaki Load Balancer gereksinimini karşılar.
+apiVersion: v1
+kind: Service
+metadata:
+  name: drift-detection-service
+spec:
+  selector:
+    app: drift-api # Bu, yukarıdaki deployment podlarına yönlendirir
+  type: LoadBalancer # Dışarıdan erişim için LoadBalancer tipi
+  ports:
+    - protocol: TCP
+      port: 80       # Servis 80 portundan dinler
+      targetPort: 5000 # Trafiği pod içindeki 5000 portuna yönlendirir
