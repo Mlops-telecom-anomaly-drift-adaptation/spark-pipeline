@@ -3,90 +3,82 @@ import joblib
 import numpy as np
 import os
 import threading
-from skmultiflow.drift_detection import ADWIN # <<< YENİ
+from river.drift import ADWIN  # River kütüphanesi (Doğru olan)
 import pandas as pd
 
 app = Flask(__name__)
 
 # ---------------------------------------------------------
-# 1. MODEL YÜKLEME (Inference Hazırlığı)
+# 1. MODEL YÜKLEME
 # ---------------------------------------------------------
-MODEL_PATH = 'best_model.pkl'
-MODEL_VERSION = 'v1.0-Adaptive-ADWIN' # <<< Güncellenmiş versiyon
+MODEL_PATH = 'model_adwin_final.pkl'
+MODEL_VERSION = 'v1.0-Adaptive-River-ADWIN-MultiClass'
 
 if os.path.exists(MODEL_PATH):
-    print(">>> Eğitilmiş model yükleniyor...")
-    model = joblib.load(MODEL_PATH)
-    print(">>> Model başarıyla yüklendi! Canlı sisteme hazır.")
+    print(f">>> '{MODEL_PATH}' yükleniyor...")
+    try:
+        model = joblib.load(MODEL_PATH)
+        print(">>> ✅ Model başarıyla yüklendi! Canlı sisteme hazır.")
+    except Exception as e:
+        print(f">>> ❌ Model yükleme hatası: {e}")
+        model = None
 else:
-    print(">>> HATA: 'best_model.pkl' bulunamadı! Simülasyon modunda çalışılıyor.")
+    print(f">>> ⚠️ UYARI: '{MODEL_PATH}' bulunamadı! Lütfen önce analiz kodunu çalıştırın.")
     model = None
 
 # ---------------------------------------------------------
-# 2. ADAPTASYON VE DRİFT MEKANİZMASI (YENİ EKLEME)
+# 2. ADAPTASYON VE DRİFT MEKANİZMASI
 # ---------------------------------------------------------
-# ADWIN Nesnesi: Hata akışını takip eder
+# ADWIN Nesnesi (River kütüphanesi)
 adwin_detector = ADWIN() 
-# Gelen veriyi biriktirme (Drift varsa yeniden eğitim için)
-adaptive_buffer_X = []
-adaptive_buffer_y = [] # Etiketler canlı serviste olmadığı için bu buffer şu an simüle.
-                       # Gerçek hayatta bu kısım veritabanından etiketleri bekler.
-MAX_BUFFER_SIZE = 500
 
-# Kilit (Lock): Birden fazla isteğin aynı anda modeli güncellemesini engeller
+# Kilit (Lock): Aynı anda model güncellemesini engellemek için
 retrain_lock = threading.Lock()
-is_training = False # Yeniden eğitim durumu
+is_training = False 
 
 def check_and_adapt(features, true_label=None):
-    """Gelen tahmin sonucunun hatasını ADWIN'e besler ve gerekirse modeli günceller."""
+    """Drift kontrolü yapar (River kütüphanesine uygun)"""
     global model, is_training, adwin_detector
 
-    # 1. Adaptif Buffer'a Veri Ekle (Burada true_label olsaydı onu kullanırdık)
-    # Etiketler olmadığı için adaptasyon/buffer sadece simülasyondur.
-    # Gerçek sistemde bu veriler etiketlenmeyi bekler.
+    # NOT: Canlı sistemde 'true_label' (gerçek sonuç) hemen gelmez.
+    # Bu yüzden burası simülasyon amaçlıdır.
     
-    # 2. Hata Oranını ADWIN'e Besle
     if model and true_label is not None:
         prediction = model.predict(features)[0]
         # Hata oranı (0 = doğru, 1 = hata)
         error = 1 if prediction != true_label else 0 
-        adwin_detector.add_element(error)
-
-    # 3. Drift Tespitini Kontrol Et
-    if adwin_detector.detected_change() and not is_training:
-        print("!!! ADWIN: KRİTİK DRIFT TESPİT EDİLDİ! YENİDEN EĞİTİM TETİKLENİYOR. !!!")
-        is_drift = True
         
-        # Yeniden eğitimi ayrı bir iş parçacığında (thread) başlat
-        # Bu, /predict uç noktasını kilitlemez
-        # threading.Thread(target=retrain_model_async).start() 
-        # is_training = True
-        
-        # ADWIN'i sıfırla
-        adwin_detector = ADWIN()
+        # --- RIVER GÜNCELLEMESİ ---
+        adwin_detector.update(error)
 
-        return "Drift Detected (Adaptation Triggered)"
+        # Drift Tespiti
+        if adwin_detector.drift_detected:
+            print("!!! ADWIN: KRİTİK DRIFT TESPİT EDİLDİ! !!!")
+            adwin_detector = ADWIN() # Sıfırla
+            return "Drift Detected (Alert Sent)"
     
     return "Stable"
 
-# Simüle Edilmiş Asenkron Yeniden Eğitim Fonksiyonu
 def retrain_model_async():
-    """Buffer'daki verilerle modeli yeniden eğitir (Gerçek hayatta Jenkins yapar)."""
-    # global model, is_training
-    # with retrain_lock:
-        # if not is_training: return # Zaten biri eğitiyorsa çık
-        # is_training = True
-        # print("--- Yeniden Eğitim Başladı ---")
-        # # Gerçek yeniden eğitim mantığı buraya gelir
-        # # ... (Eğitim)
-        # print("--- Yeniden Eğitim Tamamlandı ---")
-        # is_training = False
-        # joblib.dump(model, MODEL_PATH) # Yeni modeli kaydet
-    pass
+    """Arka planda yeniden eğitim simülasyonu"""
+    global is_training
+    with retrain_lock:
+        if is_training: return
+        is_training = True
+        print("--- ⏳ Yeniden Eğitim Başladı (Simülasyon) ---")
+        import time
+        time.sleep(5) # Eğitimi simüle etmek için bekleme
+        print("--- ✅ Yeniden Eğitim Tamamlandı ---")
+        is_training = False
 
 # ---------------------------------------------------------
-# 3. CANLI TAHMİN (INFERENCE) VE DRİFT KONTROLÜ (GÜNCELLENDİ)
+# 3. ENDPOINTLER (UÇ NOKTALAR)
 # ---------------------------------------------------------
+
+@app.route('/')
+def home():
+    return f"<h3>MLOps Servisi Çalışıyor - {MODEL_VERSION} 🚀</h3>"
+
 @app.route('/predict', methods=['POST'])
 def predict():
     if not model:
@@ -97,58 +89,46 @@ def predict():
         features = np.array(data['features']).reshape(1, -1)
         
         # 1. Tahmin Yap
-        with retrain_lock:
-            prediction = model.predict(features)
+        prediction = model.predict(features)
         
-        # 2. ADWIN Drift Kontrolü
-        # NOTE: Canlı sistemde gerçek etiket (true_label) hemen gelmediği için,
-        # bu fonksiyon burada sadece simülasyon amacıyla çağrılır.
-        # Gerçek hayatta bu, etiketler geldiğinde (Monitoring kodu) çağrılır.
-        drift_status = check_and_adapt(features, true_label=None) 
+        # 2. Drift Kontrolü (Simülasyon)
+        drift_status = check_and_adapt(features, true_label=None)
         
-        # Simülasyon: Drift bulunduysa adaptasyon yapılıyor uyarısı ver
-        drift_warning = "Drift Detected" in drift_status
+        # --- MULTI-CLASS GÜNCELLEMESİ ---
+        # Sonuç 1, 2, 3, 4, 5, 6 olabilir.
+        result_code = int(prediction[0])
         
-        # 3. Adaptif Buffer'a Veri Ekle (Adaptasyon için)
-        # adaptive_buffer_X.append(features)
-        
-        response = {
-            "prediction": int(prediction[0]),
+        # Her sonuca genel bir etiket veriyoruz
+        label = f"Sınıf {result_code} (Class {result_code})"
+
+        return jsonify({
+            "tahmin_kodu": result_code,
+            "durum": label,
             "drift_status": drift_status,
-            "model_version": MODEL_VERSION
-        }
-        
-        return jsonify(response)
+            "versiyon": MODEL_VERSION
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-# ---------------------------------------------------------
-# 4. ADAPTASYON TETİKLEME (DevOps / Jenkins Entegrasyonu)
-# ---------------------------------------------------------
-# BU KISIM, NOTLARDAKİ JENKINS/CI/CD GEREKSİNİMİNİ KARŞILAR
+# CI/CD Trigger (Jenkins burayı tetikler)
 @app.route('/retrain', methods=['POST'])
 def retrain_trigger():
     if is_training:
-        return jsonify({"message": "Yeniden eğitim zaten devam ediyor. Lütfen bekleyin."}), 409
+        return jsonify({"message": "Eğitim zaten sürüyor."}), 409
 
-    print("--- Harici Kaynakla (Jenkins/DevOps) Yeniden Eğitim Tetikleniyor ---")
+    print("--- 🔨 Jenkins/DevOps Tarafından Tetiklendi ---")
     threading.Thread(target=retrain_model_async).start() 
+    return jsonify({"message": "Yeniden eğitim başlatıldı", "durum": "Started"})
 
-    return jsonify({"message": "Yeniden eğitim tetiklendi", "status": "Training started..."})
-
-# ---------------------------------------------------------
-# 5. KUBERNETES İÇİN HEALTH CHECK
-# ---------------------------------------------------------
+# Kubernetes Health Check (Load Balancer buraya bakar)
 @app.route('/health', methods=['GET'])
 def health_check():
-    if model is None or is_training:
-        # Model yoksa veya eğitim devam ediyorsa, servisi sağlıksız ilan et (Load Balancer buraya trafik göndermez)
-        return jsonify({"status": "error", "message": "Model not ready or Retraining in progress"}), 503
-    return jsonify({"status": "healthy", "service": MODEL_VERSION}), 200
-
+    if model is None:
+        return jsonify({"status": "error", "message": "Model yok"}), 503
+    if is_training:
+        return jsonify({"status": "warning", "message": "Eğitim sürüyor"}), 200
+    return jsonify({"status": "healthy", "version": MODEL_VERSION}), 200
 
 if __name__ == '__main__':
-    # Flask'ı birden fazla iş parçacığı (thread) ile çalıştırarak
-    # aynı anda birden fazla isteği (test kodunuzdaki 445 istek gibi) işlemesini sağlar.
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    app.run(host='0.0.0.0', port=5000)
