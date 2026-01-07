@@ -9,7 +9,7 @@ import mlflow
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 
 # --- 1. AYARLAR ---
-BUYUK_VERI_SETI_YOLU = os.path.join(os.getcwd(), "TUBITAK_2807__030825.csv")
+BUYUK_VERI_SETI_YOLU = os.path.join(os.getcwd(), "TUBITAK_data_280925__041025_cleaned.csv")
 OVERLAP_DOSYASI = os.path.join(os.getcwd(), "Overlap_matrix.csv")
 OVERLAP_ESIGI = 40.0
 PENCERE_SURESI = "8 hours"

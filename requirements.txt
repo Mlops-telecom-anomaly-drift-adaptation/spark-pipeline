@@ -1,39 +1,23 @@
-# 📘 Data Drift Tespit Sistemi - Gerekli Kütüphaneler
-# ===================================================
+# --- BÜYÜK VERİ İŞLEME (Spark) ---
+pyspark==4.1.0
 
-# Temel Kütüphaneler (Zorunlu)
-# -----------------------------
-# Bu projeyi çalıştırmak için kesinlikle lazım olan kütüphaneler.
-numpy>=1.23.0
-pandas>=2.0.0
-scikit-learn>=1.2.0
-scipy>=1.10.0
-matplotlib>=3.7.0
+# --- VERİ İŞLEME VE ANALİZ ---
+pandas
+numpy
 
-# Opsiyonel Kütüphaneler (Autoencoder için)
-# ------------------------------------------
-# Eğer dE,AE isimli metriği (autoencoder tabanlı) kullanmak istiyorsan
-# aşağıdakilerin başındaki # işaretini kaldır ve yükle.
-# tensorflow>=2.11.0
-# keras>=2.11.0
+# --- MAKİNE ÖĞRENMESİ (Random Forest) ---
+scikit-learn
 
-# Geliştirme ve Test için (İsteğe Bağlı)
-# ---------------------------------------
-# Bu kütüphaneler sadece test veya analiz sırasında işine yarar.
-# pytest>=7.4.0
-# jupyter>=1.0.0
-# seaborn>=0.12.0
+# --- DRIFT TESPİTİ (ADWIN) ---
+river
 
-#  Nasıl Kurulur?
-# -----------------
-#
-# Sadece temel kurulum (Autoencoder kullanmayacaksan):
-#   pip install numpy pandas scikit-learn scipy matplotlib
-#
-# Tam kurulum (Autoencoder dahil hepsi):
-#   pip install -r requirements.txt
-#   pip install tensorflow
-#
-# Not:
-# - dP ve dE,PCA metrikleri TensorFlow olmadan da çalışır.
-# - Sadece dE,AE metriği için TensorFlow / Keras gerekir.
+# --- İZLEME VE METRİKLER (Grafana & Prometheus) ---
+prometheus_client
+mlflow
+
+# --- DEPOLAMA (MinIO Bağlantısı) ---
+boto3
+
+# --- GÖRSELLEŞTİRME (Eski scriptler için gerekirse) ---
+matplotlib
+seaborn

@@ -1,151 +1,124 @@
-# TUBITAK Telecommunications MLOps Project
+Adaptive MLOps Pipeline
 
-## Proje Hakkında
+Bu proje, telekomünikasyon ağ trafiğindeki değişimleri (Concept Drift) tespit eden, Spark tabanlı hibrit bir MLOps mimarisidir. Sistem, veri akışı sırasında oluşan sapmaları ADWIN algoritması ile algılar ve Kayan Pencere (Sliding Window) stratejisi ile modelini otonom olarak günceller.
 
-Bu proje, LTE hücre performans verilerini işlemek ve analiz etmek için geliştirilmiş bir MLOps pipeline'ıdır. Apache Spark kullanılarak 100,000+ satır veriyi işler, MLflow ile deney takibi yapar ve Prometheus/Grafana ile sistem monitörleme sağlar.
+⸻
 
-## Özellikler
+Proje Mimarisi
 
-- **İki Aşamalı Spark Pipeline**: LTE hücre verilerinin verimli işlenmesi
-- **PCA Boyut İndirgeme**: Yüksek boyutlu verilerin optimize edilmesi
-- **MLflow Entegrasyonu**: Deney takibi ve model versiyonlama
-- **Prometheus & Grafana**: Gerçek zamanlı sistem monitörleme
-- **Ölçeklenebilir Mimari**: Büyük veri setleri için optimize edilmiş
+Sistem aşağıdaki bileşenlerin entegrasyonu ile çalışır:
+	1.	ETL & Veri İşleme: Apache Spark (PySpark - Local Mode)
+	2.	Model Eğitimi: Scikit-Learn Random Forest (Drift algılandığında tetiklenir)
+	3.	İzleme (Monitoring): Grafana, Prometheus Pushgateway ve MinIO
 
-## Teknolojiler
+⸻
 
-- **Apache Spark**: Dağıtık veri işleme
-- **MLflow**: ML deney yönetimi ve tracking
-- **Prometheus**: Metrik toplama ve monitoring
-- **Grafana**: Görselleştirme ve dashboard
-- **Python**: Ana programlama dili
-- **PCA**: Dimensionality reduction
+Proje Dizin Yapısı
 
-## Kurulum
+SparkProjem/
+│
+├── README.md                          # Proje Dokümantasyonu
+├── requirements.txt                   # Kütüphaneler
+├── TUBITAK_2807__030825.csv           # Ana Ham Veri
+├── Overlap_matrix.csv                 # Hücre komşuluk verisi
+│
+├── 📜 pipeline_1_pyspark_robustscaler.py  # Spark 1. Aşama: Veri Hazırlama
+├── 📜 pipeline_2_advanced_fs_full.py      # Spark 2. Aşama: PCA & Feature Selection
+│
+├── 📂 drift_final/                        # Simülasyon Modülü
+│   ├── 📂 Dataset/                        # Parçalı batch verileri (batch1.dat...)
+│
+|── 📂 gas_drift_demo/
+│   ├──📜  stream_simulation_files.py      # Canlı Akış ve Drift Tespiti
+├── 📂 pipeline1_robust_scaled_pyspark/    # Spark Çıktısı 1 (Parquet)
+└── 📂 ml_ready_data_pca_parquet_full/     # Spark Çıktısı 2 (Eğitim Verisi)
 
-### Gereksinimler
+⸻
 
-```bash
-# Python bağımlılıkları
+Kurulum ve Çalıştırma Adımları
+
+Python Ortamının Hazırlanması
+
 pip install -r requirements.txt
-```
 
-### requirements.txt
-```
-pyspark==3.4.0
-mlflow==2.8.0
-prometheus-client==0.18.0
-pandas
-numpy
-scikit-learn
-```
 
-### Yapılandırma
+⸻
 
-1. MLflow tracking server'ı başlatın:
-```bash
-mlflow server --host 0.0.0.0 --port 5000
-```
+ Kafka Altyapısının Başlatılması (Docker Compose)
 
-2. Prometheus yapılandırmasını ayarlayın (`prometheus.yml`)
+Kafka ve Zookeeper servislerini başlatmak için:
 
-3. Grafana dashboard'larını import edin
+docker-compose up -d
 
-## Kullanım
+Bu komut docker-compose.yml dosyasını kullanarak Kafka altyapısını ayağa kaldırır.
 
-### Veri İşleme Pipeline'ı Çalıştırma
+⸻
 
-```python
-# Pipeline'ı başlat
-python src/main_pipeline.py --input data/lte_cell_data.csv --output results/
-```
+3️⃣ MLOps Servislerinin Başlatılması (Manuel Docker CLI)
 
-### MLflow Deneyleri
+ MinIO (S3 Uyumlulu Veri Depolama)
 
-```python
-# MLflow UI'a erişim
-mlflow ui --port 5000
-```
+docker run -p 9000:9000 -p 9001:9001 \
+  -e "MINIO_ROOT_USER=minioadmin" \
+  -e "MINIO_ROOT_PASSWORD=minioadmin" \
+  minio/minio server /data --console-address ":9001"
 
-Tarayıcınızda `http://localhost:5000` adresine gidin.
+Prometheus Pushgateway
 
-## Proje Yapısı
+docker run -p 9091:9091 prom/pushgateway
 
-```
-.
-├── data/                   # Veri dosyaları
-│   └── lte_cell_data.csv
-├── src/                    # Kaynak kodlar
-│   ├── pipeline/
-│   │   ├── stage1.py      # İlk aşama pipeline
-│   │   └── stage2.py      # İkinci aşama pipeline
-│   ├── preprocessing/
-│   │   └── pca.py         # PCA işlemleri
-│   └── main_pipeline.py   # Ana çalıştırma scripti
-├── notebooks/              # Jupyter notebooks
-├── config/                 # Yapılandırma dosyaları
-│   ├── prometheus.yml
-│   └── grafana_dashboard.json
-├── docs/                   # Dökümantasyon
-├── tests/                  # Test dosyaları
-├── requirements.txt
-└── README.md
-```
+Grafana
 
-## Pipeline Aşamaları
+docker run -d -p 3000:3000 --name=grafana grafana/grafana
 
-### Aşama 1: Veri Ön İşleme
-- Ham LTE hücre verilerinin yüklenmesi
-- Veri temizleme ve normalizasyon
-- Eksik değerlerin doldurulması
-- Feature engineering
+MLflow Server (Model Takibi - Local)
 
-### Aşama 2: Model Eğitimi ve PCA
-- PCA ile boyut indirgeme
-- Model eğitimi
-- MLflow ile metrik kaydetme
-- Model kaydetme ve versiyonlama
+mlflow server --host 127.0.0.1 --port 5000
 
-## Monitoring
 
-### Prometheus Metrikleri
-- Pipeline çalışma süreleri
-- Veri işleme throughput
-- Hata oranları
-- Kaynak kullanımı (CPU, Memory)
+⸻
 
-### Grafana Dashboards
-- Real-time pipeline monitoring
-- Model performans metrikleri
-- Sistem sağlık göstergeleri
+Pipeline’ların Çalıştırılması
 
-## Katkıda Bulunanlar
+Adım 1: Veri Hazırlama (Spark ETL)
 
-- **Sena** - Geliştirici
-- **Zeynep** - Geliştirici
+Ham veriyi okur, temizler ve RobustScaler uygular.
 
-## Lisans
+spark-submit pipeline_1_pyspark_robustscaler.py
 
-TUBITAK projesi kapsamında geliştirilmiştir.
+Adım 2: Özellik Seçimi ve PCA
 
-## İletişim
+Öznitelik mühendisliği yapar ve veriyi boyutsal olarak indirger.
 
-Proje hakkında sorularınız için GitHub Issues kullanabilirsiniz.
+spark-submit pipeline_2_advanced_fs_full.py
 
-## Notlar
+Adım 3: Canlı Akış & Drift Simülasyonu
 
-- Veri seti 100,000+ satır LTE hücre performans verisi içermektedir
-- Pipeline optimize edilmiş Spark konfigürasyonu ile çalışır
-- MLflow tracking URI'ı `config/mlflow_config.py` dosyasında ayarlanabilir
+Batch dosyalarını kullanarak canlı veri akışını ve adaptif modeli başlatır.
 
-## Gelecek Geliştirmeler
+cd gas_drift_demo
+python stream_simulation_files.py
 
-- [ ] Otomatik model retraining
-- [ ] A/B testing framework
-- [ ] Model deployment automation
-- [ ] Advanced feature engineering
-- [ ] Real-time prediction API
 
----
+⸻
 
-**Son Güncelleme**: Kasım 2025
+Canlı İzleme Adresleri
+
+Simülasyon çalışırken sistemi aşağıdaki arayüzlerden izleyebilirsiniz:
+	•	Grafana: http://localhost:3000
+Kullanıcı: admin / Şifre: admin
+	•	MinIO Console: http://localhost:9001
+Giriş: minioadmin / minioadmin
+	•	Pushgateway Metrics: http://localhost:9091
+	•	MLflow UI: http://localhost:5000
+
+⸻
+Anahtar Kavramlar
+	•	Concept Drift Detection (ADWIN)
+	•	Sliding Window Model Update
+	•	Streaming MLOps Architecture
+	•	Real-time Monitoring & Metrics
+
+⸻
+
+Bu proje, akademik çalışmalar ve gerçek zamanlı ağ trafiği analizi için uçtan uca adaptif bir MLOps örneği sunar.
