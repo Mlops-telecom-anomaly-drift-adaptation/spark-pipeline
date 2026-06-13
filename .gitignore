@@ -9,3 +9,8 @@ windowed_features_output/
 ml_ready_data_pca_parquet/
 ml_ready_data_pca_parquet_full/
 pipeline1_robust_scaled_sample.csv
+
+vae_esdd_full/data/
+vae_esdd_full/mlruns/
+vae_esdd_full/__pycache__/
+*.pyc
