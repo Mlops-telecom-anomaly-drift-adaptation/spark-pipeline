@@ -121,4 +121,16 @@ Anahtar Kavramlar
 
 ⸻
 
+## Results & Progress
+
+**Dataset.** Real LTE cell-performance data from a TUBITAK research project: 100,000+ raw measurement rows across 50 network KPIs collected from real telecom cells, plus a cell-neighborhood overlap matrix for spatial context.
+
+**Pipeline results.** Pipeline 1 (windowing + robust scaling) turns 100K+ raw rows into 4,155 model-ready windowed samples; RobustScaler was chosen because telecom KPI distributions are outlier-heavy. Pipeline 2 (feature selection + PCA) reduces 50 features to 12 components, a 76% dimensionality reduction that preserves 96% of variance and cuts storage from 112 MB to 79 MB. All experiments are tracked as 8 versioned MLflow runs and monitored live on a Grafana + Prometheus dashboard.
+
+**Drift detection results.** The methodology was first validated by replicating Gonzalez-Cebrian et al. (2024) on its real public dataset: the dP index correctly flags known drift between the reference (2005-2010) and current (2010-2015) periods (dP = 34 vs. threshold 30). Across six injected-drift scenarios the two indices proved complementary: dP responds to medium and high scale drift (about 46 and 38 on a 0-100 scale) while dE_PCA responds to mean-shift and added-noise drift, with zero false alarms on the no-drift scenario for both. A VAE at the input layer (TensorFlow) provides reconstruction-based detection alongside ADWIN for streaming drift.
+
+**Problems solved.** High dimensionality of 50 correlated KPIs, solved with the PCA pipeline. Outlier-heavy KPI distributions that break standard scaling, solved with robust scaling in the Spark ETL stage. False-positive drift alarms, solved with the dual-metric dP + dE_PCA strategy, with dE_PCA preferred for its false-alarm resistance. Reproducibility, solved with MLflow-tracked, versioned experiments.
+
+**Status.** Data preparation, drift detection and monitoring layers are complete and verified. The drift-adaptation stage, sliding-window model retraining and automated model updates, is in final development.
+
 Bu proje, akademik çalışmalar ve gerçek zamanlı ağ trafiği analizi için uçtan uca adaptif bir MLOps örneği sunar.
