@@ -1,16 +1,49 @@
+# --- Python ---
 venv/
-__pycache__/
-mlruns/
+.venv/
+env/
+pycache/
+*.pyc
+*.py[cod]
+.ipynb_checkpoints/
+
+# --- Logs & OS ---
 *.log
 .DS_Store
-*.csv
+Thumbs.db
+
+# --- Editors ---
+.vscode/
+.idea/
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- MLflow / experiment artifacts ---
+mlruns/
+mlartifacts/
+mlflow.db
+
+# --- Spark ---
+spark-warehouse/
+metastore_db/
+
+# --- Generated pipeline outputs ---
 *.parquet
+*.csv
 windowed_features_output/
+ml_ready_data_parquet/
 ml_ready_data_pca_parquet/
 ml_ready_data_pca_parquet_full/
+pipeline1_robust_scaled_pyspark/
 pipeline1_robust_scaled_sample.csv
 
+# --- vae_esdd_full outputs ---
 vae_esdd_full/data/
 vae_esdd_full/mlruns/
 vae_esdd_full/__pycache__/
-*.pyc
+
+# --- Local desktop path committed by mistake ---
+Desktop/
