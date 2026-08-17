@@ -93,6 +93,8 @@ Drift comparison across scenarios
 
 ## Quickstart
 
+Dataset. The raw TÜBİTAK measurement file is not included in this repository — it is research data and is excluded by .gitignore. Place your own TUBITAK_2807__030825.csv in the project root, or run the pipeline against the included sample files to reproduce the workflow end to end.
+
 ```bash
 # 1. Python environment
 pip install -r requirements.txt
