@@ -47,3 +47,8 @@ vae_esdd_full/__pycache__/
 
 # --- Local desktop path committed by mistake ---
 Desktop/
+
+# Isolated portfolio demo outputs
+portfolio_demo/output/
+.pytest_cache/
+.venv-demo/

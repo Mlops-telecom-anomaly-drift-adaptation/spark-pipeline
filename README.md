@@ -1,5 +1,15 @@
 # Adaptive MLOps Pipeline — Concept Drift Detection in Telecom Networks
 
+## Start here: a reproducible portfolio demo
+
+Run `python -m pip install -r portfolio_demo/requirements.txt` and
+`python -m portfolio_demo.run` from this directory. The [standalone demo](portfolio_demo/README.md)
+uses synthetic data, logs real experiment outputs to local MLflow and has automated tests.
+It is separate from the research architecture documented below; it does not reproduce
+real-network results or verify the full Spark/Kafka stack.
+
+
+
 ![Python](https://img.shields.io/badge/Python-3.10-blue)
 ![PySpark](https://img.shields.io/badge/PySpark-ETL-orange)
 ![MLflow](https://img.shields.io/badge/MLflow-tracking-0194E2)
