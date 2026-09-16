@@ -1,0 +1,60 @@
+{
+  "config": {
+    "seed": 42,
+    "rows": 2400,
+    "drift_threshold": 0.75,
+    "min_f1_gain": 0.01
+  },
+  "features": [
+    "latency_ms",
+    "packet_loss_pct",
+    "throughput_mbps"
+  ],
+  "data": "synthetic demonstration only",
+  "drift_scores": {
+    "latency_ms": 1.51462963766467,
+    "packet_loss_pct": 0.5560619868491956,
+    "throughput_mbps": 0.8257577692103748
+  },
+  "drift_triggered": true,
+  "candidate_promoted": true,
+  "selection_rule": "validation F1 gain >= min_f1_gain; holdout excluded from selection",
+  "metrics": {
+    "baseline_test": {
+      "f1": 0.9061662198391421,
+      "precision": 0.8535353535353535,
+      "recall": 0.9657142857142857,
+      "roc_auc": 0.9908571428571429
+    },
+    "baseline_validation": {
+      "f1": 0.851010101010101,
+      "precision": 0.9519774011299436,
+      "recall": 0.769406392694064,
+      "roc_auc": 0.911261908788545
+    },
+    "baseline_shifted_holdout": {
+      "f1": 0.8442211055276382,
+      "precision": 0.9438202247191011,
+      "recall": 0.7636363636363637,
+      "roc_auc": 0.9189346590909091
+    },
+    "selected_shifted_holdout": {
+      "f1": 0.9432213209733488,
+      "precision": 0.9621749408983451,
+      "recall": 0.925,
+      "roc_auc": 0.9764630681818182
+    },
+    "candidate_validation": {
+      "f1": 0.9325581395348838,
+      "precision": 0.9502369668246445,
+      "recall": 0.9155251141552512,
+      "roc_auc": 0.9613704267433338
+    }
+  },
+  "versions": {
+    "numpy": "2.3.5",
+    "pandas": "2.2.3",
+    "scikit-learn": "1.8.0",
+    "mlflow-skinny": "3.4.0"
+  }
+}

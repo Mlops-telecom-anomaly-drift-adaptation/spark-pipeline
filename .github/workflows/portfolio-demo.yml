@@ -1,0 +1,25 @@
+name: Synthetic MLOps demo
+on:
+  push:
+    paths: ['portfolio_demo/**', '.github/workflows/portfolio-demo.yml']
+  pull_request:
+    paths: ['portfolio_demo/**', '.github/workflows/portfolio-demo.yml']
+permissions:
+  contents: read
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: portfolio_demo/requirements.txt
+      - run: python -m pip install -r portfolio_demo/requirements.txt
+      - run: python -m pytest -q portfolio_demo/tests
+      - run: python -m portfolio_demo.run --output /tmp/telecom-demo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-demo-results
+          path: /tmp/telecom-demo/artifacts/results.json
