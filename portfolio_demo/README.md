@@ -61,19 +61,3 @@ Four tests cover reproducible data, a detectable shift, disjoint training/evalua
 records, validation-based selection, model reload, real MLflow metrics/artifacts, and
 the no-drift path. The dedicated GitHub workflow runs this demo only; legacy research
 and infrastructure tests were not run as part of this isolated demonstration.
-
-## Sena için anlatım ve alıştırma
-
-**90 saniyelik anlatım:** “İlk model referans veride eğitiliyor. Yeni pencerenin
-özellik dağılımı değişince aday model eğitiyorum. İyileşmeyi doğrulama kümesinde ölçüp
-kararı kilitliyorum. En son hiç kullanılmamış test verisindeki sonucu raporluyorum.
-MLflow parametreleri, sonuçları ve model dosyasını saklıyor. Veriler sentetik.”
-
-**Kendi yapacağın değişiklik:** Ayrı bir çıktı klasöründe seed 7 ile çalıştır.
-F1 değişirse bunun nedenini açıkla. `min_f1_gain` değerini 0.5 yapıp adayın neden
-seçilmediğini incele. Holdout skorunu gördükten sonra parametre ayarlayıp aynı skoru
-“bağımsız test” diye sunmaman gerektiğini anlat.
-
-Sorular: precision ile recall farkı; neden üç ayrı shifted split var; drift neden
-etiketsiz ölçülebilir ama performans neden etiket gerektirir; yanlış alarmın maliyeti;
-üretimde geri alma, erişim kontrolü ve izleme nasıl eklenir?
